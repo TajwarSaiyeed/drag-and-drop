@@ -1,24 +1,18 @@
 'use client';
-import { useEffect, useState } from "react";
+import {useEffect, useState} from "react";
 import {
     DragDropContext,
     Droppable,
     Draggable,
     DropResult,
 } from "@hello-pangea/dnd";
-import { cn } from "@/lib/utils";
-import { Grip, Pencil } from "lucide-react";
-
+import {Card} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {cn} from "@/lib/utils";
 
 const Page = () => {
     const [isMounted, setIsMounted] = useState<boolean>(false);
-    const [items, setItems] = useState<any[]>([
-        { id: "1", title: "Item 1", isPublished: true },
-        { id: "2", title: "Item 2", isPublished: true },
-        { id: "3", title: "Item 3", isPublished: true },
-        { id: "4", title: "Item 4", isPublished: true },
-        { id: "5", title: "Item 5", isPublished: true },
-    ]); // Changed type to any[]
+    const [items, setItems] = useState<any[]>([]); // Changed type to any[]
 
     useEffect(() => {
         setIsMounted(true);
@@ -47,14 +41,46 @@ const Page = () => {
         }));
     };
 
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files) return;
+
+        const newItems = Array.from(files).map((file) => ({
+            id: file.name,
+            title: file.name,
+        }));
+        setItems([...items, ...newItems]);
+    };
+
+    const handleButtonClick = () => {
+        const fileInput = document.getElementById('file-input') as HTMLInputElement;
+        fileInput.click();
+    };
+
+
     if (!isMounted) return null;
 
     return (
-        <div>
+        <div className={'relative'}>
+            <Button onClick={handleButtonClick} variant={'destructive'} size={'lg'} className={cn('',
+                items.length > 0 && "absolute top-0 right-0 z-10"
+            )}>
+                <input
+                    type="file"
+                    accept="application/pdf"
+                    multiple
+                    id="file-input"
+                    onChange={handleFileChange}
+                    className={"hidden"}
+                />
+                Add PDF
+            </Button>
+
             <DragDropContext onDragEnd={onDragEnd}>
-                <Droppable droppableId={"items"}>
+                <Droppable droppableId={"items"} direction={'horizontal'}>
                     {(provided) => (
-                        <div {...provided.droppableProps} ref={provided.innerRef}>
+                        <div {...provided.droppableProps} ref={provided.innerRef}
+                             className={'grid grid-cols-4 gap-2 transition'}>
                             {items.map((item, index) => (
                                 <Draggable
                                     key={item.id}
@@ -62,27 +88,15 @@ const Page = () => {
                                     index={index}
                                 >
                                     {(provided) => (
-                                        <div
-                                            className={cn(
-                                                "flex items-center gap-x-2 bg-slate-200 border-slate-200 border text-slate-700 rounded-md mb-4 text-sm",
-                                                item.isPublished &&
-                                                "bg-sky-100 border-sky-200 text-sky-700"
-                                            )}
+                                        <Card
                                             ref={provided.innerRef}
                                             {...provided.draggableProps}
+                                            {...provided.dragHandleProps}
+                                            className={'w-40 h-40 transition-transform transform hover:scale-105'}
                                         >
-                                            <div
-                                                className={cn(
-                                                    "px-2 py-3 border-r border-r-slate-200 hover:bg-slate-300 rounded-l-md transition",
-                                                    item.isPublished &&
-                                                    "border-r-sky-200 hover:bg-sky-200"
-                                                )}
-                                                {...provided.dragHandleProps}
-                                            >
-                                                <Grip className={"h-5 w-5"} />
-                                            </div>
-                                            {item.title}
-                                        </div>
+                                            {/*  image will be shown here  */}
+                                            {index} - {item.title}
+                                        </Card>
                                     )}
                                 </Draggable>
                             ))}
