@@ -1,133 +1,98 @@
-'use client'
-import Image from "next/image";
-import Link from "next/link";
-import {buttonVariants} from "@/components/ui/button";
-import {ChangeEvent, Key, useEffect, useState} from "react";
+'use client';
+import { useEffect, useState } from "react";
 import {
     DragDropContext,
     Droppable,
     Draggable,
-    DropResult
-} from '@hello-pangea/dnd';
-import {useDropzone} from "react-dropzone";
+    DropResult,
+} from "@hello-pangea/dnd";
+import { cn } from "@/lib/utils";
+import { Grip, Pencil } from "lucide-react";
 
 
-export default function Home() {
-    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-    const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-    const [uploadError, setUploadError] = useState<string | null>(null);
-    const [draggedIndex, setDraggedIndex] = useState<number | null>(null); // Track dragged file index
-
-    const onDragStart = (index: number) => setDraggedIndex(index);
-    const onDragEnd = () => setDraggedIndex(null);
-
-    const onDrop = (acceptedFiles: File[]) => {
-        const validFiles = acceptedFiles.filter((file) => file.type === 'application/pdf');
-        // ... Validate file size, etc. if needed
-
-        setSelectedFiles((prevState) => [...prevState, ...validFiles]);
-
-        if (validFiles.length) {
-            const newPreviewUrls = validFiles.map((file) => URL.createObjectURL(file));
-            setPreviewUrls([...previewUrls, ...newPreviewUrls]);
-        }
-    };
-
-    // Use useDropzone for Drag-and-Drop (add accept="application/pdf")
-
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (files) {
-            const filesArray = Array.from(files);
-            // ... Validate files if needed
-
-            setSelectedFiles(filesArray);
-            const urls = filesArray.map((file) => URL.createObjectURL(file));
-            setPreviewUrls(urls);
-        }
-    };
-
-    const handleSubmit = async () => {
-        const formData = new FormData();
-        selectedFiles.forEach((file) => formData.append('files', file));
-
-        try {
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error('Upload failed');
-            }
-
-            const data = await response.json();
-            // Handle successful upload, e.g., reset state, show success message
-        } catch (error) {
-            // Handle errors appropriately, e.g., show error message
-            setUploadError("something went wrong");
-        }
-    };
-
-    const {getRootProps, getInputProps} = useDropzone({
-        onDrop: onDrop,
-        accept: ".pdf", // Ensure PDF uploads only
-    });
-
-
-    const reorderFiles = (sourceIndex: number, destinationIndex: number) => {
-        const newFiles = [...selectedFiles];
-        const [reorderedItem] = newFiles.splice(sourceIndex, 1);
-        newFiles.splice(destinationIndex, 0, reorderedItem);
-        setSelectedFiles(newFiles);
-    };
+const Page = () => {
+    const [isMounted, setIsMounted] = useState<boolean>(false);
+    const [items, setItems] = useState<any[]>([
+        { id: "1", title: "Item 1", isPublished: true },
+        { id: "2", title: "Item 2", isPublished: true },
+        { id: "3", title: "Item 3", isPublished: true },
+        { id: "4", title: "Item 4", isPublished: true },
+        { id: "5", title: "Item 5", isPublished: true },
+    ]); // Changed type to any[]
 
     useEffect(() => {
-        // Clean up preview URLs when component unmounts
-        return () => previewUrls.forEach(URL.revokeObjectURL);
-    }, [previewUrls]);
+        setIsMounted(true);
+    }, []);
 
+    useEffect(() => {
+        setItems(items);
+    }, [items]);
+
+    const onDragEnd = (result: DropResult) => {
+        if (!result.destination) return;
+        const itemsCopy = Array.from(items);
+        const [reorderedItem] = itemsCopy.splice(result.source.index, 1);
+        itemsCopy.splice(result.destination.index, 0, reorderedItem);
+
+        const startIndex = Math.min(result.source.index, result.destination.index);
+        const endIndex = Math.max(result.source.index, result.destination.index);
+
+        const updateItems = itemsCopy.slice(startIndex, endIndex + 1);
+        setItems(itemsCopy);
+
+        // Assuming `onReorder` function is defined somewhere
+        const bulkUpdateData = updateItems.map((item) => ({
+            id: item.id,
+            position: itemsCopy.findIndex((i) => i.id === item.id),
+        }));
+    };
+
+    if (!isMounted) return null;
 
     return (
         <div>
-            <Link href={'/split-pdf'} className={buttonVariants()}>
-                Split PDF
-            </Link>
-            <Link href={'/merge-pdf'} className={buttonVariants()}>
-                Merge PDF
-            </Link>
-
-
-            <div className="mr-80 pr-80 mt-20 pt-20">
-                {/* Drag-and-drop zone */}
-                <div {...getRootProps()}>
-                    <input {...getInputProps()} />
-                    <p>Drag & drop PDFs here, or click to select</p>
-                </div>
-
-                {/* File selection input */}
-                <input
-                    type="file"
-                    accept="application/pdf"
-                    multiple
-                    onChange={handleFileChange}
-                />
-
-                {/* Upload button */}
-                <button onClick={handleSubmit}>Upload</button>
-
-                {/* File list and previews */}
-                {uploadError && <p className="text-red-500">{uploadError}</p>}
-                <div className="flex flex-wrap">
-                    {previewUrls.map((url, index) => ((url: string | undefined, index: Key | null | undefined) => (
-                        <div key={index} style={{margin: '10px 0'}}>
-                            <embed src={url} type="application/pdf" width="500" height="600"/>
+            <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId={"items"}>
+                    {(provided) => (
+                        <div {...provided.droppableProps} ref={provided.innerRef}>
+                            {items.map((item, index) => (
+                                <Draggable
+                                    key={item.id}
+                                    draggableId={item.id}
+                                    index={index}
+                                >
+                                    {(provided) => (
+                                        <div
+                                            className={cn(
+                                                "flex items-center gap-x-2 bg-slate-200 border-slate-200 border text-slate-700 rounded-md mb-4 text-sm",
+                                                item.isPublished &&
+                                                "bg-sky-100 border-sky-200 text-sky-700"
+                                            )}
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                        >
+                                            <div
+                                                className={cn(
+                                                    "px-2 py-3 border-r border-r-slate-200 hover:bg-slate-300 rounded-l-md transition",
+                                                    item.isPublished &&
+                                                    "border-r-sky-200 hover:bg-sky-200"
+                                                )}
+                                                {...provided.dragHandleProps}
+                                            >
+                                                <Grip className={"h-5 w-5"} />
+                                            </div>
+                                            {item.title}
+                                        </div>
+                                    )}
+                                </Draggable>
+                            ))}
+                            {provided.placeholder}
                         </div>
-                    ))(url, index))}
-                </div>
-            </div>
+                    )}
+                </Droppable>
+            </DragDropContext>
         </div>
     );
-}
+};
 
+export default Page;
