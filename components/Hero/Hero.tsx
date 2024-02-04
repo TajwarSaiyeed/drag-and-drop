@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Document, Page, pdfjs } from "react-pdf";
 import workerSrc from "pdfjs-dist/build/pdf.worker.entry.js";
-import { ArrowRightCircle, Plus, XCircle } from "lucide-react";
+import { ArrowRightCircle, Plus, Trash, XCircle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -201,7 +201,7 @@ const Hero = () => {
           <div className="col-span-2 flex justify-center w-full relative">
             <div className="absolute top-10 right-6">
               <div className="relative">
-                <div className="size-5 bg-black -top-2 -left-3 absolute rounded-full ring-2 ring-primary text-background flex justify-center items-center text-xs font-medium">
+                <div className="absolute size-5 bg-black -top-2 -left-3  rounded-full ring-2 ring-primary text-background flex justify-center items-center text-xs font-medium">
                   {items.length}
                 </div>
                 <Button
@@ -219,6 +219,15 @@ const Hero = () => {
                   />
                   <Plus size={28} />
                 </Button>
+                <div>
+                  <Button
+                    size={"icon"}
+                    className="rounded-full mt-2"
+                    onClick={() => setItems([])}
+                  >
+                    <Trash />
+                  </Button>
+                </div>
               </div>
             </div>
             <DragDropContext onDragEnd={onDragEnd}>
@@ -321,6 +330,7 @@ const Hero = () => {
 
             <div className="w-11/12 mx-auto absolute bottom-20">
               <Button
+                disabled={items.length < 2}
                 onClick={handleMergePDFs}
                 className="text-[24px] font-medium h-[82px] w-full"
               >
