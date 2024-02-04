@@ -9,8 +9,24 @@ import {
 import {Card} from "@/components/ui/card";
 import {Button} from "@/components/ui/button";
 import {cn} from "@/lib/utils";
+import {Document, Page, pdfjs} from "react-pdf";
+import workerSrc from 'pdfjs-dist/build/pdf.worker.entry.js'
 
-const Page = () => {
+pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+
+
+function reorder<T>(item: T[], startIndex: number, endIndex: number) {
+    const result = Array.from(item);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+
+    return result;
+};
+
+
+const HomePage = () => {
+    const [pageNumber, setPageNumber] = useState<number>(1);
+    const [numPages, setNumPages] = useState<number>(0);
     const [isMounted, setIsMounted] = useState<boolean>(false);
     const [items, setItems] = useState<any[]>([]); // Changed type to any[]
 
@@ -39,7 +55,9 @@ const Page = () => {
             id: item.id,
             position: itemsCopy.findIndex((i) => i.id === item.id),
         }));
+
     };
+
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
@@ -48,6 +66,7 @@ const Page = () => {
         const newItems = Array.from(files).map((file) => ({
             id: file.name,
             title: file.name,
+            file: file,
         }));
         setItems([...items, ...newItems]);
     };
@@ -77,7 +96,7 @@ const Page = () => {
             </Button>
 
             <DragDropContext onDragEnd={onDragEnd}>
-                <Droppable droppableId={"items"} direction={'horizontal'}>
+                <Droppable droppableId={"items"} direction={'horizontal'} type={"list"}>
                     {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef}
                              className={'grid grid-cols-4 gap-2 transition'}>
@@ -90,12 +109,18 @@ const Page = () => {
                                     {(provided) => (
                                         <Card
                                             ref={provided.innerRef}
-                                            {...provided.draggableProps}
                                             {...provided.dragHandleProps}
-                                            className={'w-40 h-40 transition-transform transform hover:scale-105'}
+                                            {...provided.draggableProps}
+                                            className={'w-40 h-40 transition-transform transform'}
                                         >
-                                            {/*  image will be shown here  */}
-                                            {index} - {item.title}
+                                            <Document
+                                                file={item.file}
+                                                onLoadSuccess={({numPages}) => {
+                                                    setNumPages(numPages);
+                                                }}
+                                            >
+                                                <Page pageNumber={pageNumber}/>
+                                            </Document>
                                         </Card>
                                     )}
                                 </Draggable>
@@ -109,4 +134,4 @@ const Page = () => {
     );
 };
 
-export default Page;
+export default HomePage;

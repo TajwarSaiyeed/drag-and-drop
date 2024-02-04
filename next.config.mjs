@@ -1,20 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    module: {
-        rules: [
-            {
-                test: /\.(bin|pdf)$/i,
-                use: [
-                    {
-                        loader: 'file-loader',
-                        options: {
-                            esModule: false,
-                        },
-                    },
-                ],
-            },
-        ]
-    }
+    webpack: (config, {isServer}) => {
+        config.module.rules.push({
+            test: /\.node$/,
+            use: 'node-loader',
+        });
+
+        return config;
+    },
+
 };
 
 export default nextConfig;
