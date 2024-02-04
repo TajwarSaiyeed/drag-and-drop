@@ -1,190 +1,131 @@
 "use client";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { mergePDFs } from "@/helpers/mergePDFs";
+import {Button} from "@/components/ui/button";
+import {Card} from "@/components/ui/card";
+import {mergePDFs} from "@/helpers/mergePDFs";
 import useScreenSize from "@/hooks/useScreenSize";
-import { cn } from "@/lib/utils";
+import {cn} from "@/lib/utils";
 import {
-  DragDropContext,
-  Draggable,
-  DropResult,
-  Droppable,
+    DragDropContext,
+    Draggable,
+    DropResult,
+    Droppable,
 } from "@hello-pangea/dnd";
 import workerSrc from "pdfjs-dist/build/pdf.worker.entry.js";
-import React, { useEffect, useState } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
+import React, {useEffect, useState} from "react";
+import {Document, Page, pdfjs} from "react-pdf";
+import DragAndDrop from "@/components/drag-and-drop";
+
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
 function reorder<T>(item: T[], startIndex: number, endIndex: number) {
-  const result = Array.from(item);
-  const [removed] = result.splice(startIndex, 1);
-  result.splice(endIndex, 0, removed);
+    const result = Array.from(item);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
 
-  return result;
+    return result;
 }
 
 const HomePage = () => {
-  const [pageNumber, setPageNumber] = useState<number>(1);
-  const [numPages, setNumPages] = useState<number>(0);
-  const [isMounted, setIsMounted] = useState<boolean>(false);
-  const [items, setItems] = useState<any[]>([]);
-  const { isMobile, isSm, isMd, isLg, isXl, is2xl } = useScreenSize();
+    const [isMounted, setIsMounted] = useState<boolean>(false);
+    const [items, setItems] = useState<any[]>([]);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
-  useEffect(() => {
-    setItems(items);
-  }, [items]);
+    useEffect(() => {
+        setItems(items);
+    }, [items]);
 
-  const onDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
-    const itemsCopy = Array.from(items);
-    const [reorderedItem] = itemsCopy.splice(result.source.index, 1);
-    itemsCopy.splice(result.destination.index, 0, reorderedItem);
 
-    const startIndex = Math.min(result.source.index, result.destination.index);
-    const endIndex = Math.max(result.source.index, result.destination.index);
+    const handleButtonClick = () => {
+        const fileInput = document.getElementById("file-input") as HTMLInputElement;
+        fileInput.click();
+    };
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files) return;
 
-    const updateItems = itemsCopy.slice(startIndex, endIndex + 1);
-    setItems(itemsCopy);
+        const newItems = Array.from(files).map((file) => ({
+            id: file.name,
+            title: file.name,
+            file: file,
+        }));
+        setItems([...items, ...newItems]);
+    };
 
-    // Assuming `onReorder` function is defined somewhere
-    const bulkUpdateData = updateItems.map((item) => ({
-      id: item.id,
-      position: itemsCopy.findIndex((i) => i.id === item.id),
-    }));
-  };
+    const handleMergePDFs = async () => {
+        if (items && items.length > 0) {
+            try {
+                const pdfBuffers = await Promise.all(
+                    items.map(async (item) => {
+                        const arrayBuffer = await item.file.arrayBuffer();
+                        return new Uint8Array(arrayBuffer);
+                    })
+                );
 
-  const handleButtonClick = () => {
-    const fileInput = document.getElementById("file-input") as HTMLInputElement;
-    fileInput.click();
-  };
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
+                const mergedPDFBuffer = await mergePDFs(pdfBuffers);
 
-    const newItems = Array.from(files).map((file) => ({
-      id: file.name,
-      title: file.name,
-      file: file,
-    }));
-    setItems([...items, ...newItems]);
-  };
+                const blob = new Blob([mergedPDFBuffer], {type: "application/pdf"});
+                const link = document.createElement("a");
+                link.href = window.URL.createObjectURL(blob);
+                link.download = "merged.pdf";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (error) {
+                console.error("Error merging PDFs:", error);
+                // Handle the error as needed
+            }
+        } else {
+            alert("Add Some Pdf");
+        }
+    };
 
-  const handleMergePDFs = async () => {
-    if (items && items.length > 0) {
-      try {
-        const pdfBuffers = await Promise.all(
-          items.map(async (item) => {
-            const arrayBuffer = await item.file.arrayBuffer();
-            return new Uint8Array(arrayBuffer);
-          })
-        );
+    if (!isMounted) return null;
 
-        const mergedPDFBuffer = await mergePDFs(pdfBuffers);
-
-        const blob = new Blob([mergedPDFBuffer], { type: "application/pdf" });
-        const link = document.createElement("a");
-        link.href = window.URL.createObjectURL(blob);
-        link.download = "merged.pdf";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } catch (error) {
-        console.error("Error merging PDFs:", error);
-        // Handle the error as needed
-      }
-    } else {
-      alert("Add Some Pdf");
-    }
-  };
-
-  if (!isMounted) return null;
-
-  return (
-    <div className={"relative "}>
-      {items.length === 0 && (
-        <React.Fragment>
-          <Button
-            onClick={handleButtonClick}
-            variant={"destructive"}
-            size={"lg"}
-            className={cn(
-              "",
-              items.length > 0 && "absolute top-0 right-0 z-10"
-            )}
-          >
-            <input
-              type="file"
-              accept="application/pdf"
-              multiple
-              id="file-input"
-              onChange={handleFileChange}
-              className={"hidden"}
-            />
-            Add PDF
-          </Button>
-        </React.Fragment>
-      )}
-
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId={"items"} direction={"horizontal"} type={"list"}>
-          {(provided) => (
-            <div
-              {...provided.droppableProps}
-              ref={provided.innerRef}
-              className={"grid grid-cols-4 gap-2 transition"}
-            >
-              {items.map((item, index) => (
-                <Draggable key={item.id} draggableId={item.id} index={index}>
-                  {(provided) => (
-                    <Card
-                      ref={provided.innerRef}
-                      {...provided.dragHandleProps}
-                      {...provided.draggableProps}
-                      className={
-                        "max-w-[150px]  transition-transform transform"
-                      }
+    return (
+        <div className={"relative "}>
+            {items.length === 0 && (
+                <React.Fragment>
+                    <Button
+                        onClick={handleButtonClick}
+                        variant={"destructive"}
+                        size={"lg"}
+                        className={cn(
+                            "",
+                            items.length > 0 && "absolute top-0 right-0 z-10"
+                        )}
                     >
-                      <Document
-                        file={item.file}
-                        onLoadSuccess={({ numPages }) => {
-                          setNumPages(numPages);
-                        }}
-                      >
-                        <Page
-                          pageNumber={pageNumber}
-                          renderTextLayer={false}
-                          renderAnnotationLayer={false}
-                          // className="max-w-[10px] max-h-fit border border-red-600"
-                          width={is2xl ? 300 : isLg ? 250 : 150}
+                        <input
+                            type="file"
+                            accept="application/pdf"
+                            multiple
+                            id="file-input"
+                            onChange={handleFileChange}
+                            className={"hidden"}
                         />
-                      </Document>
-                    </Card>
-                  )}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+                        Add PDF
+                    </Button>
+                </React.Fragment>
+            )}
 
-      <div className="mt-24">
-        <Button
-          variant={"destructive"}
-          size={"lg"}
-          className={cn("", items.length > 0 && "absolute top-0 right-0 z-10")}
-          type="button"
-          onClick={handleMergePDFs}
-        >
-          Merge Pdf
-        </Button>
-      </div>
-    </div>
-  );
+            {/*drap and drop*/}
+            <DragAndDrop items={items} setItems={setItems}/>
+
+            <div className="mt-24">
+                <Button
+                    variant={"destructive"}
+                    size={"lg"}
+                    className={cn("", items.length > 0 && "absolute top-0 right-0 z-10")}
+                    type="button"
+                    onClick={handleMergePDFs}
+                >
+                    Merge Pdf
+                </Button>
+            </div>
+        </div>
+    );
 };
 
 export default HomePage;
