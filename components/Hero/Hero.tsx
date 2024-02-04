@@ -18,6 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
+import { mergePDFs } from "@/helpers/mergePDFs";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -125,6 +126,35 @@ const Hero = () => {
   const handleRemovePDF = (idToRemove: string) => {
     const updatedItems = items.filter((item) => item.id !== idToRemove);
     setItems(updatedItems);
+  };
+
+  // Merge PDF's
+  const handleMergePDFs = async () => {
+    if (items && items.length > 0) {
+      try {
+        const pdfBuffers = await Promise.all(
+          items.map(async (item) => {
+            const arrayBuffer = await item.file.arrayBuffer();
+            return new Uint8Array(arrayBuffer);
+          })
+        );
+
+        const mergedPDFBuffer = await mergePDFs(pdfBuffers);
+
+        const blob = new Blob([mergedPDFBuffer], { type: "application/pdf" });
+        const link = document.createElement("a");
+        link.href = window.URL.createObjectURL(blob);
+        link.download = "merged.pdf";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (error) {
+        console.error("Error merging PDFs:", error);
+        // Handle the error as needed
+      }
+    } else {
+      alert("Add Some Pdf");
+    }
   };
 
   return (
@@ -290,7 +320,10 @@ const Hero = () => {
             </div>
 
             <div className="w-11/12 mx-auto absolute bottom-20">
-              <Button className="text-[24px] font-medium h-[82px] w-full">
+              <Button
+                onClick={handleMergePDFs}
+                className="text-[24px] font-medium h-[82px] w-full"
+              >
                 Merge PDF <ArrowRightCircle className="ml-3" />
               </Button>
             </div>
