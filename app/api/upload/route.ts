@@ -1,4 +1,12 @@
 import {NextResponse} from "next/server";
+import credentials from "@/key.json"
+import {DocumentProcessorServiceClient} from "@google-cloud/documentai";
+
+const client = new DocumentProcessorServiceClient({
+    credentials: credentials,
+})
+
+
 export const config = {
     api: {
         bodyParser: false,
@@ -18,12 +26,21 @@ export async function POST(req: Request) {
         const bytes = await file.arrayBuffer();
 
         const buffer = Buffer.from(bytes);
-        const encodedDocument = buffer.toString('base64');
 
 
+        const [response] = await client.processDocument({
+            inlineDocument: {
+                content: buffer.toString("base64"),
+            },
+        });
+
+
+        console.log(response)
+
+        return NextResponse.json({success: true});
     } catch
         (error: Error | any) {
-
+        console.error(error);
         return NextResponse.json("Something went wrong", {status: 500})
     }
 }
