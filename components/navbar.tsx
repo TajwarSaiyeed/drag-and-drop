@@ -3,41 +3,12 @@ import Link from "next/link";
 
 import {
     NavigationMenu,
-    NavigationMenuContent,
     NavigationMenuItem,
-    NavigationMenuLink,
     NavigationMenuList,
 } from "@/components/ui/navigation-menu";
-import {cn} from "@/lib/utils";
-import {forwardRef} from "react";
 import Image from "next/image";
-import { Separator } from "@/components/ui/separator"
-
-
-const ListItem = forwardRef<
-    React.ElementRef<"a">,
-    React.ComponentPropsWithoutRef<"a">
->(({className, title, children, ...props}, ref) => {
-    return (
-        <li>
-            <NavigationMenuLink asChild>
-                <a
-                    ref={ref}
-                    className={cn(
-                        "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-                        className
-                    )}
-                    {...props}
-                >
-                    <div className="text-sm font-medium leading-none">{title}</div>
-                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                        {children}
-                    </p>
-                </a>
-            </NavigationMenuLink>
-        </li>
-    );
-});
+import {Separator} from "@/components/ui/separator"
+import {buttonVariants} from "@/components/ui/button";
 
 const Navbar = () => {
     return (
@@ -59,13 +30,21 @@ const Navbar = () => {
                     <NavigationMenu>
                         <NavigationMenuList>
                             <NavigationMenuItem>
-                                <Link className="text-primary font-semibold text-sm" href={"/"}>
+                                <Link className={buttonVariants({
+                                    variant: "link",
+                                    size: "sm"
+                                })} href={"/"}>
                                     MERGE PDF
                                 </Link>
                             </NavigationMenuItem>
-                            <Separator orientation="vertical" />
+                            <Separator orientation="vertical" className={"h-5 mx-3"}/>
                             <NavigationMenuItem>
-                                <Link className="text-primary font-semibold text-sm" href={"/image-to-doc"}>Image to
+                                <Link
+                                    className={buttonVariants({
+                                        variant: "link",
+                                        size: "sm"
+                                    })}
+                                    href={"/image-to-doc"}>Image to
                                     Doc</Link>
                             </NavigationMenuItem>
                         </NavigationMenuList>
