@@ -4,9 +4,10 @@ import {DragDropContext, Droppable, Draggable, DropResult} from "@hello-pangea/d
 import {Card} from "@/components/ui/card";
 import {Button} from "@/components/ui/button";
 import {cn} from "@/lib/utils";
-import {Plus, Trash, UploadCloud, XCircle} from "lucide-react";
+import {Loader, Plus, Trash, UploadCloud, XCircle} from "lucide-react";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import axios from "axios";
+import {Document, Packer, Paragraph} from "docx";
 
 
 function reorder<T>(item: T[], startIndex: number, endIndex: number) {
@@ -18,6 +19,7 @@ function reorder<T>(item: T[], startIndex: number, endIndex: number) {
 }
 
 const ImageToDoc = () => {
+    const [extracting, setExtracting] = useState<boolean>(false);
     const [isMounted, setIsMounted] = useState<boolean>(false);
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const [items, setItems] = useState<any[]>([]);
@@ -47,6 +49,8 @@ const ImageToDoc = () => {
             const files = event.dataTransfer.files;
             if (!files) return
 
+            setExtracting(true);
+
             const formData = new FormData();
 
             formData.append("file", files[0]);
@@ -55,9 +59,39 @@ const ImageToDoc = () => {
                     "Content-Type": "multipart/form-data",
                 },
             });
-            console.log(res);
+            const textFromResponse = res.data.response.document.text;
+
+            const doc = new Document({
+                sections: [
+                    {
+                        properties: {},
+                        children: [],
+                    },
+                ],
+            });
+
+            const paragraphs = textFromResponse.split("\n");
+
+            paragraphs.forEach((paragraph) => {
+                const text = new Paragraph({
+                    text: paragraph,
+                });
+
+                doc.Document.View.Body.push(text);
+            });
+
+            const buffer = await Packer.toBuffer(doc);
+            const blob = new Blob([buffer], {type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+            const url = window.URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "converted_document.docx";
+            a.click();
         } catch (error) {
             console.log(error);
+        } finally {
+            setExtracting(false);
         }
     };
 
@@ -68,6 +102,9 @@ const ImageToDoc = () => {
             const files = event.target.files;
             if (!files) return
 
+
+            setExtracting(true);
+
             const formData = new FormData();
 
             formData.append("file", files[0]);
@@ -76,8 +113,40 @@ const ImageToDoc = () => {
                     "Content-Type": "multipart/form-data",
                 },
             });
+
+            const textFromResponse = res.data.response.document.text;
+
+            const doc = new Document({
+                sections: [
+                    {
+                        properties: {},
+                        children: [],
+                    },
+                ],
+            });
+
+            const paragraphs = textFromResponse?.split("\n");
+
+            paragraphs.forEach((paragraph) => {
+                const text = new Paragraph({
+                    text: paragraph,
+                });
+
+                doc.Document.View.Body.push(text);
+            });
+
+            const buffer = await Packer.toBuffer(doc);
+            const blob = new Blob([buffer], {type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+            const url = window.URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "converted_document.docx";
+            a.click();
         } catch (error) {
             console.log(error)
+        } finally {
+            setExtracting(false);
         }
 
     };
@@ -93,6 +162,7 @@ const ImageToDoc = () => {
         const updatedItems = items.filter((item) => item.id !== idToRemove);
         setItems(updatedItems);
     };
+
 
     return (
         <div
@@ -111,10 +181,11 @@ const ImageToDoc = () => {
                     onClick={handleButtonClick}
                     className={cn(
                         "border border-dashed border-primary hover:border-none hover:bg-gray-200 rounded-md p-3 text-muted-foreground transition-all font-semibold cursor-pointer h-[200px] max-w-[600px] w-full text-sm flex justify-center items-center flex-col space-y-4 mx-10",
-                        items.length > 0 && ""
+                        items.length > 0 && "",
+                        extracting && "cursor-not-allowed pointer-events-none bg-gray-200 border-none hover:border-none hover:bg-gray-200 rounded-md p-3 text-muted-foreground transition-all font-semibold h-[200px] max-w-[600px] w-full text-sm flex justify-center items-center flex-col space-y-4 mx-10"
                     )}
                 >
-                    <UploadCloud size={60}/>
+                    {extracting ? <Loader className={'animate-spin'} size={60}/> : <UploadCloud size={60}/>}
 
                     <input
                         type="file"
@@ -124,7 +195,7 @@ const ImageToDoc = () => {
                         className={"hidden"}
                     />
                     <p className={'text-muted-foreground text-sm'}>
-                        Supports (PDF, GIF, TIFF, TIF, JPG, JPEG, PNG, BMP, WEBP) (5 pages, 20MB max)
+                        {extracting ? "Extracting text from file..." : "Supports (PDF, GIF, TIFF, TIF, JPG, JPEG, PNG, BMP, WEBP) (5 pages, 20MB max)"}
                     </p>
                 </div>
             </div>
