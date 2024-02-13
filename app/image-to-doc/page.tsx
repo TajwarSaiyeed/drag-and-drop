@@ -141,7 +141,7 @@ const ImageToDoc = () => {
                         className={"hidden"}
                     />
                     <p className={'text-muted-foreground text-sm'}>
-                        {extracting ? "Extracting text from file..." : "Supports (PDF, GIF, TIFF, TIF, JPG, JPEG, PNG, BMP, WEBP) (5 pages, 20MB max)"}
+                        {extracting ? "Extracting text from file..." : "Supports (PDF, GIF, TIFF, TIF, JPG, JPEG, PNG, BMP, WEBP) (20MB max)"}
                     </p>
                 </div>
                 {text && (<Button className={'bg-primary text-white'}
