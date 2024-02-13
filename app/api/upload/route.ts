@@ -8,13 +8,6 @@ const client = new DocumentProcessorServiceClient({
     credentials: credentials,
 })
 
-
-export const config = {
-    api: {
-        bodyParser: false,
-    },
-};
-
 export async function POST(req: Request) {
     try {
         const data = await req.formData();

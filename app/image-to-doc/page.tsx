@@ -1,27 +1,16 @@
 'use client';
 import React, {useState, useEffect} from "react";
-import {DragDropContext, Droppable, Draggable, DropResult} from "@hello-pangea/dnd";
-import {Card} from "@/components/ui/card";
 import {Button} from "@/components/ui/button";
 import {cn} from "@/lib/utils";
-import {Loader, Plus, Trash, UploadCloud, XCircle} from "lucide-react";
-import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
+import {Loader, UploadCloud} from "lucide-react";
 import axios from "axios";
 import {Document, Packer, Paragraph} from "docx";
 
 
-function reorder<T>(item: T[], startIndex: number, endIndex: number) {
-    const result = Array.from(item);
-    const [removed] = result.splice(startIndex, 1);
-    result.splice(endIndex, 0, removed);
-
-    return result;
-}
-
 const ImageToDoc = () => {
+    const [text, setText] = useState<string>("");
     const [extracting, setExtracting] = useState<boolean>(false);
     const [isMounted, setIsMounted] = useState<boolean>(false);
-    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const [items, setItems] = useState<any[]>([]);
 
     useEffect(() => {
@@ -32,24 +21,14 @@ const ImageToDoc = () => {
         setItems(items);
     }, [items]);
 
-    const onDragEnd = (result: DropResult) => {
-        if (!result.destination) return;
-        const itemsCopy = reorder(
-            items,
-            result.source.index,
-            result.destination.index
-        );
-        setItems(itemsCopy);
-    };
-
     const handleFileDrop = async (event: React.DragEvent<HTMLDivElement>) => {
         try {
-
             event.preventDefault();
             const files = event.dataTransfer.files;
             if (!files) return
 
             setExtracting(true);
+            setText("")
 
             const formData = new FormData();
 
@@ -59,35 +38,7 @@ const ImageToDoc = () => {
                     "Content-Type": "multipart/form-data",
                 },
             });
-            const textFromResponse = res.data.response.document.text;
-
-            const doc = new Document({
-                sections: [
-                    {
-                        properties: {},
-                        children: [],
-                    },
-                ],
-            });
-
-            const paragraphs = textFromResponse.split("\n");
-
-            paragraphs.forEach((paragraph) => {
-                const text = new Paragraph({
-                    text: paragraph,
-                });
-
-                doc.Document.View.Body.push(text);
-            });
-
-            const buffer = await Packer.toBuffer(doc);
-            const blob = new Blob([buffer], {type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
-            const url = window.URL.createObjectURL(blob);
-
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "converted_document.docx";
-            a.click();
+            setText(res.data.response.document.text)
         } catch (error) {
             console.log(error);
         } finally {
@@ -101,9 +52,8 @@ const ImageToDoc = () => {
         try {
             const files = event.target.files;
             if (!files) return
-
-
             setExtracting(true);
+            setText("")
 
             const formData = new FormData();
 
@@ -113,36 +63,7 @@ const ImageToDoc = () => {
                     "Content-Type": "multipart/form-data",
                 },
             });
-
-            const textFromResponse = res.data.response.document.text;
-
-            const doc = new Document({
-                sections: [
-                    {
-                        properties: {},
-                        children: [],
-                    },
-                ],
-            });
-
-            const paragraphs = textFromResponse?.split("\n");
-
-            paragraphs.forEach((paragraph) => {
-                const text = new Paragraph({
-                    text: paragraph,
-                });
-
-                doc.Document.View.Body.push(text);
-            });
-
-            const buffer = await Packer.toBuffer(doc);
-            const blob = new Blob([buffer], {type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
-            const url = window.URL.createObjectURL(blob);
-
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "converted_document.docx";
-            a.click();
+            setText(res.data.response.document.text)
         } catch (error) {
             console.log(error)
         } finally {
@@ -156,13 +77,38 @@ const ImageToDoc = () => {
         fileInput.click();
     };
 
+    const downloadFile = async () => {
+        const doc = new Document({
+            sections: [
+                {
+                    properties: {},
+                    children: [],
+                },
+            ],
+        });
+
+        const paragraphs = text?.split("\n");
+
+        paragraphs.forEach((paragraph) => {
+            const text = new Paragraph({
+                text: paragraph,
+            });
+
+            doc.Document.View.Body.push(text);
+        });
+
+        const buffer = await Packer.toBuffer(doc);
+        const blob = new Blob([buffer], {type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+        const url = window.URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "converted_document.docx";
+        a.click();
+    }
+
+
     if (!isMounted) return null;
-
-    const handleRemoveFile = (idToRemove: string) => {
-        const updatedItems = items.filter((item) => item.id !== idToRemove);
-        setItems(updatedItems);
-    };
-
 
     return (
         <div
@@ -198,120 +144,11 @@ const ImageToDoc = () => {
                         {extracting ? "Extracting text from file..." : "Supports (PDF, GIF, TIFF, TIF, JPG, JPEG, PNG, BMP, WEBP) (5 pages, 20MB max)"}
                     </p>
                 </div>
+                {text && (<Button className={'bg-primary text-white'}
+                                  onClick={downloadFile}>Download</Button>)}
             </div>
-
-            {
-                items.length > 0 && (
-                    <div className="grid grid-cols-3 w-full h-screen">
-                        <div className="col-span-2 flex justify-center w-full relative">
-                            <div className="absolute top-10 right-6">
-                                <div className="relative">
-                                    <div
-                                        className="absolute size-5 bg-black -top-2 -left-3  rounded-full ring-2 ring-primary text-background flex justify-center items-center text-xs font-medium">
-                                        {items.length}
-                                    </div>
-                                    <Button
-                                        size={"icon"}
-                                        className="rounded-full"
-                                        onClick={handleButtonClick}
-                                    >
-                                        <input
-                                            type="file"
-                                            accept=".pdf,.gif,.tiff,.tif,.jpg,.jpeg,.png,.bmp,.webp"
-                                            multiple
-                                            id="file-input"
-                                            onChange={handleFileChange}
-                                            className={"hidden"}
-                                        />
-                                        <Plus size={28}/>
-                                    </Button>
-                                    <div>
-                                        <Button
-                                            size={"icon"}
-                                            className="rounded-full mt-2"
-                                            onClick={() => setItems([])}
-                                        >
-                                            <Trash/>
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                            <DragDropContext onDragEnd={onDragEnd}>
-                                <Droppable
-                                    droppableId={"items"}
-                                    direction={"horizontal"}
-                                    type={"list"}
-                                >
-                                    {(provided) => (
-                                        <div
-                                            {...provided.droppableProps}
-                                            ref={provided.innerRef}
-                                            className={
-                                                "flex justify-center items-start gap-2 transition mt-20 flex-wrap"
-                                            }
-                                        >
-                                            {items.map((item, index) => (
-                                                <Draggable
-                                                    key={item.id}
-                                                    draggableId={item.id}
-                                                    index={index}
-                                                >
-                                                    {(provided) => (
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Card
-                                                                        ref={provided.innerRef}
-                                                                        {...provided.dragHandleProps}
-                                                                        {...provided.draggableProps}
-                                                                        className={
-                                                                            "w-[200px] h-[260px] overflow-hidden transition-transform transform relative hover:border hover:border-dashed hover:border-primary/80 shadow-sm "
-                                                                        }
-                                                                        onMouseEnter={() => setHoveredIndex(index)}
-                                                                        onMouseLeave={() => setHoveredIndex(null)}
-                                                                    >
-                                                                        {hoveredIndex === index && (
-                                                                            <Button
-                                                                                size={"icon"}
-                                                                                variant={"ghost"}
-                                                                                className="absolute top-1 right-1 z-50 rounded-full text-muted-foreground hover:bg-primary hover:text-primary-foreground bg-secondary"
-                                                                                onClick={() => handleRemoveFile(item.id)}
-                                                                            >
-                                                                                <XCircle/>
-                                                                            </Button>
-                                                                        )}
-
-                                                                        {/* Display the image */}
-                                                                        <img
-                                                                            src={URL.createObjectURL(item.file)}
-                                                                            alt={item.title}
-                                                                            className="w-full h-auto"
-                                                                        />
-                                                                        <p className="mt-2 text-xs text-foreground/60 font-medium w-[160px] truncate ... mx-5 text-center">
-                                                                            {item.title}
-                                                                        </p>
-                                                                    </Card>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent className="bg-muted-foreground">
-                                                                    <p className="text-muted font-semibold">{`${item.info.size} - ${item.info.pages} pages`}</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    )}
-                                                </Draggable>
-                                            ))}
-                                            {provided.placeholder}
-                                        </div>
-                                    )}
-                                </Droppable>
-                            </DragDropContext>
-                        </div>
-                    </div>
-                )
-            }
         </div>
     )
-        ;
 };
 
 export default ImageToDoc;
