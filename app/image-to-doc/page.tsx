@@ -1,154 +1,188 @@
-'use client';
-import React, {useState, useEffect} from "react";
-import {Button} from "@/components/ui/button";
-import {cn} from "@/lib/utils";
-import {Loader, UploadCloud} from "lucide-react";
+"use client";
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Loader, UploadCloud } from "lucide-react";
 import axios from "axios";
-import {Document, Packer, Paragraph} from "docx";
-
+import { Document, Packer, Paragraph, Table, TableRow, TableCell } from "docx";
 
 const ImageToDoc = () => {
-    const [text, setText] = useState<string>("");
-    const [extracting, setExtracting] = useState<boolean>(false);
-    const [isMounted, setIsMounted] = useState<boolean>(false);
-    const [items, setItems] = useState<any[]>([]);
+  const [text, setText] = useState<string>("");
+  const [extracting, setExtracting] = useState<boolean>(false);
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [items, setItems] = useState<any[]>([]);
 
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
-    useEffect(() => {
-        setItems(items);
-    }, [items]);
+  useEffect(() => {
+    setItems(items);
+  }, [items]);
 
-    const handleFileDrop = async (event: React.DragEvent<HTMLDivElement>) => {
-        try {
-            event.preventDefault();
-            const files = event.dataTransfer.files;
-            if (!files) return
+  const handleFileDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    try {
+      event.preventDefault();
+      const files = event.dataTransfer.files;
+      if (!files) return;
 
-            setExtracting(true);
-            setText("")
+      setExtracting(true);
+      setText("");
 
-            const formData = new FormData();
-
-            formData.append("file", files[0]);
-            const res = await axios.post("/api/upload", formData, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            });
-            setText(res.data.response.document.text)
-        } catch (error) {
-            console.log(error);
-        } finally {
-            setExtracting(false);
-        }
-    };
-
-    const handleFileChange = async (
-        event: React.ChangeEvent<HTMLInputElement>
-    ) => {
-        try {
-            const files = event.target.files;
-            if (!files) return
-            setExtracting(true);
-            setText("")
-
-            const formData = new FormData();
-
-            formData.append("file", files[0]);
-            const res = await axios.post("/api/upload", formData, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            });
-            setText(res.data.response.document.text)
-        } catch (error) {
-            console.log(error)
-        } finally {
-            setExtracting(false);
-        }
-
-    };
-
-    const handleButtonClick = () => {
-        const fileInput = document.getElementById("file-input") as HTMLInputElement;
-        fileInput.click();
-    };
-
-    const downloadFile = async () => {
-        const doc = new Document({
-            sections: [
-                {
-                    properties: {},
-                    children: [],
-                },
-            ],
-        });
-
-        const paragraphs = text?.split("\n");
-
-        paragraphs.forEach((paragraph) => {
-            const text = new Paragraph({
-                text: paragraph,
-            });
-
-            doc.Document.View.Body.push(text);
-        });
-
-        const buffer = await Packer.toBuffer(doc);
-        const blob = new Blob([buffer], {type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
-        const url = window.URL.createObjectURL(blob);
-
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "converted_document.docx";
-        a.click();
+      // Call Google Cloud Vision API for OCR
+      const formData = new FormData();
+      formData.append("file", files[0]);
+      const res = await axios.post("/api/ocr", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setText(res.data.text);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setExtracting(false);
     }
+  };
 
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    try {
+      const files = event.target.files;
+      if (!files) return;
+      setExtracting(true);
+      setText("");
 
-    if (!isMounted) return null;
+      const formData = new FormData();
 
-    return (
+      formData.append("file", files[0]);
+      const res = await axios.post("/api/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      console.log(res);
+
+      setText(res.data.response.document.text);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  console.log(text);
+
+  const handleButtonClick = () => {
+    const fileInput = document.getElementById("file-input") as HTMLInputElement;
+    fileInput.click();
+  };
+
+  const downloadFile = async () => {
+    // Convert extracted text into a table format
+    const tableData = parseTableText(text);
+
+    // Create a new document with a table
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            new Paragraph("Extracted Table"),
+            new Table({
+              rows: tableData.map(
+                (rowData) =>
+                  new TableRow({
+                    children: rowData.map(
+                      (cellData) =>
+                        new TableCell({
+                          children: [new Paragraph(cellData)],
+                          borders: {},
+                        })
+                    ),
+                  })
+              ),
+            }),
+          ],
+        },
+      ],
+    });
+
+    // Download the document
+    const buffer = await Packer.toBuffer(doc);
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "extracted_table.docx";
+    a.click();
+  };
+
+  const parseTableText = (text: string): string[][] => {
+    // Logic to parse the extracted text and identify table structure
+    // You'll need to implement this part based on the format of your extracted text
+    // For simplicity, I'm assuming the text is already formatted as a table
+    const rows = text.split("\n");
+    const tableData = rows.map((row) => row.split("\t")); // Assuming tab-separated columns
+    return tableData;
+  };
+
+  if (!isMounted) return null;
+
+  return (
+    <div
+      className="relative bg-secondary w-full h-screen overflow-auto"
+      onDrop={handleFileDrop}
+      onDragOver={(e) => e.preventDefault()}
+    >
+      <div className="flex flex-col items-center justify-center space-y-5 pt-10">
+        <h1 className="font-semibold text-muted-foreground text-2xl sm:text-3xl">
+          Upload your file to convert
+        </h1>
+        <p className="text-muted-foreground text-sm">
+          Drag and drop your file here or click to upload
+        </p>
         <div
-            className="relative bg-secondary w-full h-screen overflow-auto"
-            onDrop={handleFileDrop}
-            onDragOver={(e) => e.preventDefault()}
+          onClick={handleButtonClick}
+          className={cn(
+            "border border-dashed border-primary hover:border-none hover:bg-gray-200 rounded-md p-3 text-muted-foreground transition-all font-semibold cursor-pointer h-[200px] max-w-[600px] w-full text-sm flex justify-center items-center flex-col space-y-4 mx-10",
+            items.length > 0 && "",
+            extracting &&
+              "cursor-not-allowed pointer-events-none bg-gray-200 border-none hover:border-none hover:bg-gray-200 rounded-md p-3 text-muted-foreground transition-all font-semibold h-[200px] max-w-[600px] w-full text-sm flex justify-center items-center flex-col space-y-4 mx-10"
+          )}
         >
-            <div className="flex flex-col items-center justify-center space-y-5 pt-10">
-                <h1 className="font-semibold text-muted-foreground text-2xl sm:text-3xl">
-                    Upload your file to convert
-                </h1>
-                <p className="text-muted-foreground text-sm">
-                    Drag and drop your file here or click to upload
-                </p>
-                <div
-                    onClick={handleButtonClick}
-                    className={cn(
-                        "border border-dashed border-primary hover:border-none hover:bg-gray-200 rounded-md p-3 text-muted-foreground transition-all font-semibold cursor-pointer h-[200px] max-w-[600px] w-full text-sm flex justify-center items-center flex-col space-y-4 mx-10",
-                        items.length > 0 && "",
-                        extracting && "cursor-not-allowed pointer-events-none bg-gray-200 border-none hover:border-none hover:bg-gray-200 rounded-md p-3 text-muted-foreground transition-all font-semibold h-[200px] max-w-[600px] w-full text-sm flex justify-center items-center flex-col space-y-4 mx-10"
-                    )}
-                >
-                    {extracting ? <Loader className={'animate-spin'} size={60}/> : <UploadCloud size={60}/>}
+          {extracting ? (
+            <Loader className={"animate-spin"} size={60} />
+          ) : (
+            <UploadCloud size={60} />
+          )}
 
-                    <input
-                        type="file"
-                        accept=".pdf,.gif,.tiff,.tif,.jpg,.jpeg,.png,.bmp,.webp"
-                        id="file-input"
-                        onChange={handleFileChange}
-                        className={"hidden"}
-                    />
-                    <p className={'text-muted-foreground text-sm'}>
-                        {extracting ? "Extracting text from file..." : "Supports (PDF, GIF, TIFF, TIF, JPG, JPEG, PNG, BMP, WEBP) (20MB max)"}
-                    </p>
-                </div>
-                {text && (<Button className={'bg-primary text-white'}
-                                  onClick={downloadFile}>Download</Button>)}
-            </div>
+          <input
+            type="file"
+            accept=".pdf,.gif,.tiff,.tif,.jpg,.jpeg,.png,.bmp,.webp"
+            id="file-input"
+            onChange={handleFileChange}
+            className={"hidden"}
+          />
+          <p className={"text-muted-foreground text-sm"}>
+            {extracting
+              ? "Extracting text from file..."
+              : "Supports (PDF, GIF, TIFF, TIF, JPG, JPEG, PNG, BMP, WEBP) (20MB max)"}
+          </p>
         </div>
-    )
+        {text && (
+          <Button className={"bg-primary text-white"} onClick={downloadFile}>
+            Download
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default ImageToDoc;
