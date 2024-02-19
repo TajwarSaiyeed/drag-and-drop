@@ -121,15 +121,6 @@ const ImageToDoc = () => {
         a.click();
     };
 
-    const parseTableText = (text: string): string[][] => {
-        // Logic to parse the extracted text and identify table structure
-        // You'll need to implement this part based on the format of your extracted text
-        // For simplicity, I'm assuming the text is already formatted as a table
-        const rows = text.split("\n");
-        const tableData = rows.map((row) => row.split("\t")); // Assuming tab-separated columns
-        return tableData;
-    };
-
     if (!isMounted) return null;
 
     return (
