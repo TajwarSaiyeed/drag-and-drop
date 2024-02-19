@@ -39,6 +39,7 @@ const ImageToDoc = () => {
                 },
             });
             setText(res.data.text);
+            setDoc(res.data.response.document);
         } catch (error) {
             console.log(error);
         } finally {
