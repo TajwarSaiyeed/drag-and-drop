@@ -25,6 +25,20 @@ export function getFileType(filename: string) {
         case 'webp':
             return 'image/webp';
         default:
-            return null; // Unknown file type
+            return null;
     }
+}
+
+
+export const extractText = (text: string, data: any) => {
+    const txtWithoutLine = text.replace(/\n/g, " ");
+    return data.map((cell: any) => {
+        // can be possible to have multiple textSegments
+        const segments = cell.layout.textAnchor.textSegments;
+        return segments.map((segment: any) => {
+            const startIndex = parseInt(segment.startIndex);
+            const endIndex = parseInt(segment.endIndex);
+            return txtWithoutLine.slice(startIndex, endIndex);
+        }).join(" ");
+    });
 }
