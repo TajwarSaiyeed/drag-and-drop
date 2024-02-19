@@ -51,16 +51,16 @@ const ImageToDoc = () => {
 
     const downloadFile = async () => {
         if (!dc) return;
-        const headerR = extractText(text, dc.pages[0].tables[0].headerRows[0].cells);
-        const bodyR = dc.pages[0].tables[0].bodyRows.map((row: any) => {
+        const headerR = dc?.pages[0]?.tables[0]?.headerRows ? extractText(text, dc.pages[0].tables[0].headerRows[0].cells) : [];
+        const bodyR = dc?.pages[0]?.tables[0]?.bodyRows ? dc.pages[0].tables[0].bodyRows.map((row: any) => {
             return extractText(text, row.cells);
-        })
+        }) : [];
         const doc = new Document({
             sections: [
                 {
                     properties: {},
                     children: [
-                        new Table({
+                        headerR && bodyR && new Table({
                             rows: [
                                 new TableRow({
                                     children: headerR.map((cell: any) => new TableCell({
