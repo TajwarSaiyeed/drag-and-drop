@@ -132,7 +132,7 @@ const ImageToDoc = () => {
         >
             <div className="flex flex-col items-center justify-center space-y-5 pt-10">
                 <h1 className="font-semibold text-muted-foreground text-2xl sm:text-3xl">
-                    Upload your file to convert
+                    Extract Table from Image, PDF, or Document etc.
                 </h1>
                 <p className="text-muted-foreground text-sm">
                     Drag and drop your file here or click to upload
