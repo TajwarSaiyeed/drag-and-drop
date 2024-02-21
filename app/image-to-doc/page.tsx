@@ -59,22 +59,7 @@ const ImageToDoc = () => {
             sections: [
                 {
                     properties: {},
-                    children: [
-                        headerR && bodyR && new Table({
-                            rows: [
-                                new TableRow({
-                                    children: headerR.map((cell: any) => new TableCell({
-                                        children: [new Paragraph(cell)],
-                                    })),
-                                }),
-                                ...bodyR.map((row: any) => new TableRow({
-                                    children: row.map((cell: any) => new TableCell({
-                                        children: [new Paragraph(cell)],
-                                    })),
-                                })),
-                            ],
-                        }),
-                    ],
+                    children: [],
                 },
             ],
         });
@@ -84,10 +69,38 @@ const ImageToDoc = () => {
         paragraphs.forEach((paragraph) => {
             const text = new Paragraph({
                 text: paragraph,
+                style: "default",
+                thematicBreak: false,
+                autoSpaceEastAsianText: false,
+                spacing: {
+                    after: 120,
+                },
+                shading: {
+                    fill: "auto",
+                    color: "auto",
+                }
             });
 
             doc.Document.View.Body.push(text);
         });
+
+        if (headerR && bodyR) {
+            const table = new Table({
+                rows: [
+                    new TableRow({
+                        children: headerR.map((cell: any) => new TableCell({
+                            children: [new Paragraph(cell)],
+                        })),
+                    }),
+                    ...bodyR.map((row: any) => new TableRow({
+                        children: row.map((cell: any) => new TableCell({
+                            children: [new Paragraph(cell)],
+                        })),
+                    })),
+                ],
+            });
+            doc.Document.View.Body.push(table);
+        }
 
         // Download the document
         const buffer = await Packer.toBuffer(doc);
