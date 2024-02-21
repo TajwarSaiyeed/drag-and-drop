@@ -82,7 +82,27 @@ const ImageToDoc = () => {
             });
 
             doc.Document.View.Body.push(text);
+
+            /*
+*             // const words = paragraph.split(" ");
+    //
+    // // if (headerR?.flat().indexOf(paragraph) === -1 && bodyR?.flat().indexOf(paragraph) === -1) {
+    // //     doc.Document.View.Body.push(new Paragraph({
+    // //         children: [new TextRun(paragraph)],
+    // //     }));
+    // // }
+    //
+    // words.forEach((word) => {
+    //     if (headerR?.flat().indexOf(word) === -1 && bodyR?.flat().indexOf(word) === -1) {
+    //         doc.Document.View.Body.push(new Paragraph({
+    //             children: [new TextRun(word)],
+    //         }));
+    //     }
+    // })
+* */
+
         });
+
 
         if (headerR && bodyR) {
             const table = new Table({
