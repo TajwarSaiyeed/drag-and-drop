@@ -1,19 +1,32 @@
 "use client";
-import React, {useState, useEffect} from "react";
+import React, {useEffect, useState} from "react";
 import {Button} from "@/components/ui/button";
-import {cn, extractText} from "@/lib/utils";
+import {cn} from "@/lib/utils";
 import {Loader, UploadCloud} from "lucide-react";
 import axios from "axios";
-import {Document, Packer, Paragraph, Table, TableRow, TableCell} from "docx";
+import {Document, Packer, Paragraph, Table, TableCell, TableRow} from "docx";
+
+import {OpenAI} from "openai";
+
+
+const openai = new OpenAI({
+    baseURL: "https://api.openai.com/v1",
+    apiKey: "",
+    dangerouslyAllowBrowser: true
+});
+
 
 const ImageToDoc = () => {
-    const [dc, setDoc] = useState<any>(null);
+    const [documentContent, setDocumentContent] = useState<any>(null);
     const [text, setText] = useState<string>("");
     const [extracting, setExtracting] = useState<boolean>(false);
     const [isMounted, setIsMounted] = useState<boolean>(false);
 
     useEffect(() => {
         setIsMounted(true);
+        return () => {
+            setIsMounted(false); // Cleanup to prevent state updates on unmounted component
+        };
     }, []);
 
     const handleFileChange = async (
@@ -33,9 +46,10 @@ const ImageToDoc = () => {
                     "Content-Type": "multipart/form-data",
                 },
             });
+            console.log("Setting document content:", res.data.response.document);
 
             setText(res.data.response.document.text);
-            setDoc(res.data.response.document);
+            setDocumentContent(res.data.response.document);
         } catch (error) {
             console.log(error);
         } finally {
@@ -49,78 +63,213 @@ const ImageToDoc = () => {
         fileInput.click();
     };
 
-    const downloadFile = async () => {
-        if (!dc) return;
-        const headerR = dc?.pages[0]?.tables[0]?.headerRows ? extractText(text, dc.pages[0].tables[0].headerRows[0].cells) : [];
-        const bodyR = dc?.pages[0]?.tables[0]?.bodyRows ? dc.pages[0].tables[0].bodyRows.map((row: any) => {
-            return extractText(text, row.cells);
-        }) : [];
-        const doc = new Document({
-            sections: [
-                {
-                    properties: {},
-                    children: [],
-                },
-            ],
+
+    // Translation by openai before creating the word
+
+
+    const translateText = async (text: string, targetLanguage: string): Promise<string> => {
+        try {
+            const response = await openai.chat.completions.create({
+                model: "gpt-3.5-turbo",
+                // prompt: `Translate the following text to ${targetLanguage}:\n\n${text}`, // Customize as needed
+                temperature: 0.5, // Adjust as needed
+                max_tokens: 1000, // Adjust as needed
+                stop: ["\n"], // Stop at the first newline character
+                n: 1, // Generate a single completion
+                messages: [{role: "system", content: `Translate the following text to ${targetLanguage}:`}, {
+                    role: "user",
+                    content: text
+                }]
+            });
+
+            return response.choices[0].message.content;
+        } catch (error) {
+            console.error("Translation error:", error);
+            return ""; // Handle error appropriately
+        }
+    };
+
+    const CHUNK_SIZE = 1000; // Define a suitable chunk size based on token limits
+
+// Function to split text into chunks
+    const chunkText = (text: string, chunkSize: number): string[] => {
+        // Implementation to split text into chunks of `chunkSize` tokens
+        // This is a simplified example; consider tokenization specifics for accurate splitting
+        const result = [];
+        let currentChunk = "";
+
+        text.split(' ').forEach(word => {
+            if ((currentChunk + word).length > chunkSize) {
+                result.push(currentChunk);
+                currentChunk = word;
+            } else {
+                currentChunk += `${word} `;
+            }
         });
 
-        const paragraphs = text?.split("\n");
+        // Add the last chunk if it's not empty
+        if (currentChunk.trim()) {
+            result.push(currentChunk.trim());
+        }
 
-        paragraphs.forEach((paragraph) => {
-            const text = new Paragraph({
-                text: paragraph,
-                style: "default",
-                thematicBreak: false,
-                autoSpaceEastAsianText: false,
-                spacing: {
-                    after: 120,
-                },
-                shading: {
-                    fill: "auto",
-                    color: "auto",
+        return result;
+    };
+
+// Asynchronous function to translate a chunk of text
+    const translateChunk = async (chunk: string, targetLanguage: string): Promise<string> => {
+        // Use the `translateText` function defined earlier or a similar implementation
+        return await translateText(chunk, targetLanguage);
+    };
+
+// Function to handle large text translation by processing it in chunks
+    const translateLargeText = async (text: string, targetLanguage: string): Promise<string> => {
+        const chunks = chunkText(text, CHUNK_SIZE);
+        const translatedChunks = await Promise.all(chunks.map(async (chunk) => {
+            return await translateChunk(chunk, targetLanguage);
+        }));
+
+        // Combine translated chunks back into a single string
+        return translatedChunks.join(' ');
+    };
+
+
+    const downloadFile = async () => {
+        if (!documentContent) return;
+
+        const targetLanguage = "Spanish"; // Adjust as needed
+        const translatedText = await translateLargeText(text, targetLanguage);
+
+        let children = []; // Prepare an array to hold all document children (paragraphs and tables)
+        let usedIndices = new Set<number>(); // Track indices used in tables
+
+
+        documentContent.pages.forEach((page: any) => {
+            let items = [];
+
+
+            page.tables.forEach((tableData: any) => {
+
+                if (tableData.headerRows && tableData.headerRows.length > 0) {
+                    const textAnchor = tableData.headerRows[0].cells[0].layout?.textAnchor || {};
+                    const textSegments = textAnchor.textSegments || [];
+                    const startPosition = textSegments.length > 0 ? parseInt(textSegments[0].startIndex, 10) : 0;
+                    items.push({type: 'table', content: tableData, position: startPosition});
+
+                    // Mark indices used by this table
+                    tableData.headerRows.concat(tableData.bodyRows).forEach(row => {
+                        row.cells.forEach(cell => {
+                            cell.layout.textAnchor.textSegments.forEach(segment => {
+                                const startIndex = parseInt(segment.startIndex, 10);
+                                const endIndex = parseInt(segment.endIndex, 10);
+                                for (let i = startIndex; i <= endIndex; i++) { // Note: <= to include endIndex
+                                    usedIndices.add(i);
+                                }
+                            });
+                        });
+                    });
                 }
             });
 
-            doc.Document.View.Body.push(text);
+            // Collect text blocks with their positions
+            page.blocks.forEach((block: any) => {
+                const textAnchor = block.layout?.textAnchor || {};
+                const textSegments = textAnchor.textSegments || [];
+                const startPosition = textSegments.length > 0 ? parseInt(textSegments[0].startIndex, 10) : 0;
 
-            /*
-*             // const words = paragraph.split(" ");
-    //
-    // // if (headerR?.flat().indexOf(paragraph) === -1 && bodyR?.flat().indexOf(paragraph) === -1) {
-    // //     doc.Document.View.Body.push(new Paragraph({
-    // //         children: [new TextRun(paragraph)],
-    // //     }));
-    // // }
-    //
-    // words.forEach((word) => {
-    //     if (headerR?.flat().indexOf(word) === -1 && bodyR?.flat().indexOf(word) === -1) {
-    //         doc.Document.View.Body.push(new Paragraph({
-    //             children: [new TextRun(word)],
-    //         }));
-    //     }
-    // })
-* */
+                // Determine if any part of this block's segments has been used
+                let isUsed = textSegments.some(segment => {
+                    const start = parseInt(segment.startIndex, 10);
+                    const end = parseInt(segment.endIndex, 10);
+                    for (let i = start; i <= end; i++) {
+                        if (usedIndices.has(i)) return true;
+                    }
+                    return false;
+                });
+
+                if (!isUsed) {
+                    items.push({type: 'block', content: block, position: startPosition});
+                }
+            });
+
+
+            // Sort items by their starting position
+            items.sort((a, b) => a.position - b.position);
+
+            // Add sorted items to document
+            items.forEach(item => {
+                if (item.type === 'block') {
+                    // Use 'startIndex' and 'endIndex' from 'textSegments' to extract the block text
+                    const textAnchor = item.content.layout?.textAnchor || {};
+                    const textSegments = textAnchor.textSegments || [];
+                    let blockText = '';
+                    textSegments.forEach(segment => {
+                        const startIndex = parseInt(segment.startIndex, 10);
+                        const endIndex = parseInt(segment.endIndex, 10);
+                        blockText += translatedText.substring(startIndex, endIndex);
+                    });
+                    const paragraphs = blockText.split("\n").map(paragraphText => new Paragraph({
+                        text: paragraphText,
+                        bidirectional: true,
+                    }));
+                    children.push(...paragraphs);
+
+
+                } else if (item.type === 'table') {
+                    // Extract table data from the item
+                    const tableData = item.content;
+                    const rows = [];
+
+                    // Combine headerRows and bodyRows for processing
+                    const allRows = [...tableData.headerRows, ...tableData.bodyRows];
+
+                    allRows.forEach(rowData => {
+                        const rowCells = rowData.cells.map(cell => {
+                            const cellTextSegments = cell.layout.textAnchor.textSegments;
+                            let cellText = '';
+                            cellTextSegments.forEach(segment => {
+                                const startIndex = parseInt(segment.startIndex, 10);
+                                const endIndex = parseInt(segment.endIndex, 10);
+                                cellText += translatedText.substring(startIndex, endIndex);
+                            });
+
+                            // Create a TableCell with a Paragraph containing the cellText
+                            return new TableCell({
+                                children: [new Paragraph({
+                                    text: cellText,
+                                    bidirectional: true,
+                                })]
+                            });
+                        });
+
+                        // Create a TableRow with the mapped rowCells
+                        rows.push(new TableRow({children: rowCells}));
+                    });
+
+                    // Create a Table object with the constructed rows
+                    const table = new Table({
+                        rows: rows
+                    });
+
+                    // Add the constructed Table object to the children array
+                    children.push(table);
+
+                    // Add a separator after each table
+                    const separator = new Paragraph({
+                        text: '', // Use a space, newline, or any character as needed
+                    });
+                    children.push(separator);
+                }
+            });
 
         });
 
+        const doc = new Document({
+            sections: [{
+                properties: {},
+                children: children,
+            }],
+        });
 
-        if (headerR && bodyR) {
-            const table = new Table({
-                rows: [
-                    new TableRow({
-                        children: headerR.map((cell: any) => new TableCell({
-                            children: [new Paragraph(cell)],
-                        })),
-                    }),
-                    ...bodyR.map((row: any) => new TableRow({
-                        children: row.map((cell: any) => new TableCell({
-                            children: [new Paragraph(cell)],
-                        })),
-                    })),
-                ],
-            });
-            doc.Document.View.Body.push(table);
-        }
 
         // Download the document
         const buffer = await Packer.toBuffer(doc);
@@ -132,48 +281,43 @@ const ImageToDoc = () => {
         const a = document.createElement("a");
         a.href = url;
         a.download = "extracted_table.docx";
+        document.body.appendChild(a); // Append to body to ensure it works in all browsers
         a.click();
+        document.body.removeChild(a); // Clean up
+
     };
+
 
     if (!isMounted) return null;
 
     return (
-        <div
-            className="relative bg-secondary w-full h-screen overflow-auto"
-        >
+        <div className="relative bg-secondary w-full h-screen overflow-auto">
             <div className="flex flex-col items-center justify-center space-y-5 pt-10">
                 <h1 className="font-semibold text-muted-foreground text-2xl sm:text-3xl">
                     Extract Table from Image, PDF, or Document etc.
                 </h1>
-                <div
-                    onClick={handleButtonClick}
-                    className={cn(
-                        "border border-dashed border-primary hover:border-none hover:bg-gray-200 rounded-md p-3 text-muted-foreground transition-all font-semibold cursor-pointer h-[200px] max-w-[600px] w-full text-sm flex justify-center items-center flex-col space-y-4 mx-10",
-                        extracting &&
-                        "cursor-not-allowed pointer-events-none bg-gray-200 border-none hover:border-none hover:bg-gray-200 rounded-md p-3 text-muted-foreground transition-all font-semibold h-[200px] max-w-[600px] w-full text-sm flex justify-center items-center flex-col space-y-4 mx-10"
-                    )}
-                >
+                <div onClick={handleButtonClick} className={cn(
+                    "border border-dashed border-primary hover:border-none hover:bg-gray-200 rounded-md p-3 text-muted-foreground transition-all font-semibold cursor-pointer h-[200px] max-w-[600px] w-full text-sm flex justify-center items-center flex-col space-y-4 mx-10",
+                    extracting && "cursor-not-allowed pointer-events-none bg-gray-200 border-none"
+                )}>
                     {extracting ? (
-                        <Loader className={"animate-spin"} size={60}/>
+                        <Loader className="animate-spin" size={60}/>
                     ) : (
                         <UploadCloud size={60}/>
                     )}
-
                     <input
                         type="file"
                         accept=".pdf,.gif,.tiff,.tif,.jpg,.jpeg,.png,.bmp,.webp"
                         id="file-input"
                         onChange={handleFileChange}
-                        className={"hidden"}
+                        className="hidden"
                     />
-                    <p className={"text-muted-foreground text-sm"}>
-                        {extracting
-                            ? "Extracting text from file..."
-                            : "Supports (PDF, GIF, TIFF, TIF, JPG, JPEG, PNG, BMP, WEBP) (20MB max)"}
+                    <p className="text-muted-foreground text-sm">
+                        {extracting ? "Extracting text from file..." : "Supports (PDF, GIF, TIFF, TIF, JPG, JPEG, PNG, BMP, WEBP) (20MB max)"}
                     </p>
                 </div>
-                {text && (
-                    <Button className={"bg-primary text-white"} onClick={downloadFile}>
+                {text && documentContent && (
+                    <Button className="bg-primary text-white" onClick={downloadFile}>
                         Download
                     </Button>
                 )}
