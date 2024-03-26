@@ -11,7 +11,7 @@ import {OpenAI} from "openai";
 
 const openai = new OpenAI({
     baseURL: "https://api.openai.com/v1",
-    apiKey: "",
+    apiKey: process.env.NEXT_PUBLIC_OPENAI_KEY!,
     dangerouslyAllowBrowser: true
 });
 
@@ -74,13 +74,15 @@ const ImageToDoc = () => {
                 // prompt: `Translate the following text to ${targetLanguage}:\n\n${text}`, // Customize as needed
                 temperature: 0.5, // Adjust as needed
                 max_tokens: 1000, // Adjust as needed
-                stop: ["\n"], // Stop at the first newline character
+                // stop: ["\n"], // Stop at the first newline character
                 n: 1, // Generate a single completion
                 messages: [{role: "system", content: `Translate the following text to ${targetLanguage}:`}, {
                     role: "user",
                     content: text
                 }]
             });
+
+            console.log("Translation response:", response.choices[0].message.content)
 
             return response.choices[0].message.content;
         } catch (error) {
@@ -136,7 +138,7 @@ const ImageToDoc = () => {
     const downloadFile = async () => {
         if (!documentContent) return;
 
-        const targetLanguage = "Spanish"; // Adjust as needed
+        const targetLanguage = "Bangla"; // Adjust as needed
         const translatedText = await translateLargeText(text, targetLanguage);
 
         let children = []; // Prepare an array to hold all document children (paragraphs and tables)
