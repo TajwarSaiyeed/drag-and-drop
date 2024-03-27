@@ -17,6 +17,7 @@ const openai = new OpenAI({
 
 
 const ImageToDoc = () => {
+    const [loading, setLoading] = useState<boolean>(false);
     const [documentContent, setDocumentContent] = useState<any>(null);
     const [text, setText] = useState<string>("");
     const [extracting, setExtracting] = useState<boolean>(false);
@@ -82,8 +83,6 @@ const ImageToDoc = () => {
                 }]
             });
 
-            console.log("Translation response:", response.choices[0].message.content)
-
             return response.choices[0].message.content;
         } catch (error) {
             console.error("Translation error:", error);
@@ -136,9 +135,10 @@ const ImageToDoc = () => {
 
 
     const downloadFile = async () => {
+        setLoading(true);
         if (!documentContent) return;
 
-        const targetLanguage = "Bangla"; // Adjust as needed
+        const targetLanguage = "Spanish";
         const translatedText = await translateLargeText(text, targetLanguage);
 
         let children = []; // Prepare an array to hold all document children (paragraphs and tables)
@@ -158,9 +158,18 @@ const ImageToDoc = () => {
                     items.push({type: 'table', content: tableData, position: startPosition});
 
                     // Mark indices used by this table
-                    tableData.headerRows.concat(tableData.bodyRows).forEach(row => {
-                        row.cells.forEach(cell => {
-                            cell.layout.textAnchor.textSegments.forEach(segment => {
+                    tableData.headerRows.concat(tableData.bodyRows).forEach((row: {
+                        cells: {
+                            layout: { textAnchor: { textSegments: { startIndex: string; endIndex: string; }[]; }; };
+                        }[];
+                    }) => {
+                        row.cells.forEach((cell: {
+                            layout: { textAnchor: { textSegments: { startIndex: string; endIndex: string; }[]; }; };
+                        }) => {
+                            cell.layout.textAnchor.textSegments.forEach((segment: {
+                                startIndex: string;
+                                endIndex: string;
+                            }) => {
                                 const startIndex = parseInt(segment.startIndex, 10);
                                 const endIndex = parseInt(segment.endIndex, 10);
                                 for (let i = startIndex; i <= endIndex; i++) { // Note: <= to include endIndex
@@ -179,7 +188,7 @@ const ImageToDoc = () => {
                 const startPosition = textSegments.length > 0 ? parseInt(textSegments[0].startIndex, 10) : 0;
 
                 // Determine if any part of this block's segments has been used
-                let isUsed = textSegments.some(segment => {
+                let isUsed = textSegments.some((segment: { startIndex: string; endIndex: string; }) => {
                     const start = parseInt(segment.startIndex, 10);
                     const end = parseInt(segment.endIndex, 10);
                     for (let i = start; i <= end; i++) {
@@ -204,7 +213,7 @@ const ImageToDoc = () => {
                     const textAnchor = item.content.layout?.textAnchor || {};
                     const textSegments = textAnchor.textSegments || [];
                     let blockText = '';
-                    textSegments.forEach(segment => {
+                    textSegments.forEach((segment: { startIndex: string; endIndex: string; }) => {
                         const startIndex = parseInt(segment.startIndex, 10);
                         const endIndex = parseInt(segment.endIndex, 10);
                         blockText += translatedText.substring(startIndex, endIndex);
@@ -225,10 +234,12 @@ const ImageToDoc = () => {
                     const allRows = [...tableData.headerRows, ...tableData.bodyRows];
 
                     allRows.forEach(rowData => {
-                        const rowCells = rowData.cells.map(cell => {
+                        const rowCells = rowData.cells.map((cell: {
+                            layout: { textAnchor: { textSegments: any; }; };
+                        }) => {
                             const cellTextSegments = cell.layout.textAnchor.textSegments;
                             let cellText = '';
-                            cellTextSegments.forEach(segment => {
+                            cellTextSegments.forEach((segment: { startIndex: string; endIndex: string; }) => {
                                 const startIndex = parseInt(segment.startIndex, 10);
                                 const endIndex = parseInt(segment.endIndex, 10);
                                 cellText += translatedText.substring(startIndex, endIndex);
@@ -286,7 +297,7 @@ const ImageToDoc = () => {
         document.body.appendChild(a); // Append to body to ensure it works in all browsers
         a.click();
         document.body.removeChild(a); // Clean up
-
+        setLoading(false);
     };
 
 
@@ -313,6 +324,7 @@ const ImageToDoc = () => {
                         id="file-input"
                         onChange={handleFileChange}
                         className="hidden"
+                        disabled={extracting || loading}
                     />
                     <p className="text-muted-foreground text-sm">
                         {extracting ? "Extracting text from file..." : "Supports (PDF, GIF, TIFF, TIF, JPG, JPEG, PNG, BMP, WEBP) (20MB max)"}
@@ -320,7 +332,7 @@ const ImageToDoc = () => {
                 </div>
                 {text && documentContent && (
                     <Button className="bg-primary text-white" onClick={downloadFile}>
-                        Download
+                        {loading ? <Loader className="animate-spin" size={20}/> : "Download Document"}
                     </Button>
                 )}
             </div>
