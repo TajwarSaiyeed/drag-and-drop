@@ -72,7 +72,6 @@ const ImageToDoc = () => {
         try {
             const response = await openai.chat.completions.create({
                 model: "gpt-3.5-turbo",
-                // prompt: `Translate the following text to ${targetLanguage}:\n\n${text}`, // Customize as needed
                 temperature: 0.5, // Adjust as needed
                 max_tokens: 1000, // Adjust as needed
                 // stop: ["\n"], // Stop at the first newline character
@@ -138,7 +137,7 @@ const ImageToDoc = () => {
         setLoading(true);
         if (!documentContent) return;
 
-        const targetLanguage = "Spanish";
+        const targetLanguage = "English";
         const translatedText = await translateLargeText(text, targetLanguage);
 
         let children = []; // Prepare an array to hold all document children (paragraphs and tables)
