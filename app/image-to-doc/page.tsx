@@ -4,9 +4,31 @@ import {Button} from "@/components/ui/button";
 import {cn} from "@/lib/utils";
 import {Loader, UploadCloud} from "lucide-react";
 import axios from "axios";
-import {Document, Packer, Paragraph, Table, TableCell, TableRow} from "docx";
+import {Document, Packer, Paragraph as DocxParagraph, Table, TableCell as DocxTableCell, TableRow} from "docx";
 
 import {OpenAI} from "openai";
+
+class Paragraph extends DocxParagraph {
+    boundingPoly: any;
+    normalizedVertices: any;
+
+    constructor(options: any) {
+        super(options);
+        this.boundingPoly = options.boundingPoly;
+        this.normalizedVertices = options.normalizedVertices;
+    }
+}
+
+class TableCell extends DocxTableCell {
+    boundingPoly: any;
+    normalizedVertices: any;
+
+    constructor(options: any) {
+        super(options);
+        this.boundingPoly = options.boundingPoly;
+        this.normalizedVertices = options.normalizedVertices;
+    }
+}
 
 
 const openai = new OpenAI({
@@ -143,6 +165,64 @@ const ImageToDoc = () => {
         let children = []; // Prepare an array to hold all document children (paragraphs and tables)
         let usedIndices = new Set<number>(); // Track indices used in tables
 
+        /*
+               // a single document
+        {
+    "detectedLanguages": [],
+    "layout": {
+        "textAnchor": {
+            "textSegments": [
+                {
+                    "startIndex": "250",
+                    "endIndex": "254"
+                }
+            ],
+            "content": ""
+        },
+        "confidence": 0.8500014543533325,
+        "boundingPoly": {
+            "vertices": [
+                {
+                    "x": 26,
+                    "y": 354
+                },
+                {
+                    "x": 42,
+                    "y": 354
+                },
+                {
+                    "x": 42,
+                    "y": 362
+                },
+                {
+                    "x": 26,
+                    "y": 362
+                }
+            ],
+            "normalizedVertices": [
+                {
+                    "x": 0.04248366132378578,
+                    "y": 0.4469696879386902
+                },
+                {
+                    "x": 0.06862745434045792,
+                    "y": 0.4469696879386902
+                },
+                {
+                    "x": 0.06862745434045792,
+                    "y": 0.4570707082748413
+                },
+                {
+                    "x": 0.04248366132378578,
+                    "y": 0.4570707082748413
+                }
+            ]
+        },
+        "orientation": "PAGE_UP"
+    },
+    "provenance": null
+}
+         */
 
         documentContent.pages.forEach((page: any) => {
             let items = [];
@@ -183,6 +263,8 @@ const ImageToDoc = () => {
             // Collect text blocks with their positions
             page.blocks.forEach((block: any) => {
                 const textAnchor = block.layout?.textAnchor || {};
+                const boundingPoly = block.layout?.boundingPoly || {};
+                const normalizedVertices = block.layout?.boundingPoly?.normalizedVertices || [];
                 const textSegments = textAnchor.textSegments || [];
                 const startPosition = textSegments.length > 0 ? parseInt(textSegments[0].startIndex, 10) : 0;
 
@@ -197,7 +279,10 @@ const ImageToDoc = () => {
                 });
 
                 if (!isUsed) {
-                    items.push({type: 'block', content: block, position: startPosition});
+                    items.push({
+                        type: 'block', content: block, position: startPosition,
+                        boundingPoly: boundingPoly, normalizedVertices: normalizedVertices
+                    });
                 }
             });
 
@@ -211,15 +296,22 @@ const ImageToDoc = () => {
                     // Use 'startIndex' and 'endIndex' from 'textSegments' to extract the block text
                     const textAnchor = item.content.layout?.textAnchor || {};
                     const textSegments = textAnchor.textSegments || [];
+                    const boundingPoly = item.boundingPoly;
+                    const normalizedVertices = item.normalizedVertices;
+
+
                     let blockText = '';
                     textSegments.forEach((segment: { startIndex: string; endIndex: string; }) => {
                         const startIndex = parseInt(segment.startIndex, 10);
                         const endIndex = parseInt(segment.endIndex, 10);
                         blockText += translatedText.substring(startIndex, endIndex);
                     });
+
                     const paragraphs = blockText.split("\n").map(paragraphText => new Paragraph({
                         text: paragraphText,
                         bidirectional: true,
+                        boundingPoly: boundingPoly,
+                        normalizedVertices: normalizedVertices
                     }));
                     children.push(...paragraphs);
 
@@ -234,21 +326,33 @@ const ImageToDoc = () => {
 
                     allRows.forEach(rowData => {
                         const rowCells = rowData.cells.map((cell: {
-                            layout: { textAnchor: { textSegments: any; }; };
+                            layout: {
+                                textAnchor: { textSegments: any; };
+                                boundingPoly: { normalizedVertices: any; vertices: any; };
+                            };
                         }) => {
                             const cellTextSegments = cell.layout.textAnchor.textSegments;
+                            const boundingPoly = cell.layout.boundingPoly;
+                            const normalizedVertices = boundingPoly.normalizedVertices;
+                            const vertices = boundingPoly.vertices;
+
+                            // Extract cell text based on textSegments
                             let cellText = '';
+
                             cellTextSegments.forEach((segment: { startIndex: string; endIndex: string; }) => {
                                 const startIndex = parseInt(segment.startIndex, 10);
                                 const endIndex = parseInt(segment.endIndex, 10);
                                 cellText += translatedText.substring(startIndex, endIndex);
                             });
 
+
                             // Create a TableCell with a Paragraph containing the cellText
                             return new TableCell({
                                 children: [new Paragraph({
                                     text: cellText,
                                     bidirectional: true,
+                                    boundingPoly: vertices,
+                                    normalizedVertices: normalizedVertices
                                 })]
                             });
                         });
