@@ -2,7 +2,6 @@
 import { PDFDocument } from "pdf-lib";
 
 export const mergePDFs = async (pdfBuffers) => {
-  console.log(pdfBuffers);
   const mergedPDF = await PDFDocument.create();
 
   for (const pdfBuffer of pdfBuffers) {
