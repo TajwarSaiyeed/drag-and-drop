@@ -1,5 +1,6 @@
 import {type ClassValue, clsx} from "clsx"
 import {twMerge} from "tailwind-merge"
+import {auth} from "@clerk/nextjs";
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
@@ -41,3 +42,12 @@ export const extractText = (text: string, data: any) => {
         }).join(" ");
     });
 }
+
+
+export const handleAuth = () => {
+    const {userId} = auth();
+    if (!userId) {
+        return {userId: null};
+    }
+    return {userId};
+};

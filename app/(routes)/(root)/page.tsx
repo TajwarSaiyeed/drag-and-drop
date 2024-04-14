@@ -17,11 +17,11 @@ const HomePage = () => {
 
     if (user) {
         oldUser.then((res) => {
-            console.log(res)
             if (!res) {
                 supabase.from('users').insert({
                     user_id: user?.id,
-                }).then(console.log);
+                }).then((res) => {
+                });
             }
         })
     }
