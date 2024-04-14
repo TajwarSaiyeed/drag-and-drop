@@ -1,18 +1,27 @@
 "use client";
 import Link from "next/link";
 
-import {
-    NavigationMenu,
-    NavigationMenuItem,
-    NavigationMenuList,
-} from "@/components/ui/navigation-menu";
+import {NavigationMenu, NavigationMenuItem, NavigationMenuList,} from "@/components/ui/navigation-menu";
 import Image from "next/image";
 import {Separator} from "@/components/ui/separator"
 import {buttonVariants} from "@/components/ui/button";
+import {useAuth, UserButton} from "@clerk/nextjs";
+import {Skeleton} from "@/components/ui/skeleton";
+import {useEffect, useState} from "react";
 
 const Navbar = () => {
+    const [isClient, setIsClient] = useState(false);
+    const {isSignedIn, isLoaded, userId} = useAuth();
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    if (!isClient) {
+        return null;
+    }
     return (
-        <nav
+        <div
             className={
                 "flex border-b px-6 sm:px-10 h-14 items-center justify-between shadow-lg"
             }
@@ -51,7 +60,17 @@ const Navbar = () => {
                     </NavigationMenu>
                 </div>
             </div>
-        </nav>
+
+            {!isLoaded ? <Skeleton className="h-12 w-12 rounded-full"/>
+                : isSignedIn ? <UserButton afterSignOutUrl={"/"}/> : <div className={"flex space-x-4"}>
+                    <Link href={"/sign-in"} className={buttonVariants({variant: "outline", size: "sm"})}>
+                        Login
+                    </Link>
+                    <Link href={"/sign-up"} className={buttonVariants({variant: "secondary", size: "sm"})}>
+                        Register
+                    </Link>
+                </div>}
+        </div>
     );
 };
 

@@ -6,7 +6,7 @@ import {Loader, UploadCloud} from "lucide-react";
 import axios from "axios";
 import {Document, Packer, Paragraph as DocxParagraph, Table, TableCell as DocxTableCell, TableRow} from "docx";
 
-import {OpenAI} from "openai";
+// import {OpenAI} from "openai";
 
 class Paragraph extends DocxParagraph {
     boundingPoly: any;
@@ -30,12 +30,12 @@ class TableCell extends DocxTableCell {
     }
 }
 
-
-const openai = new OpenAI({
-    baseURL: "https://api.openai.com/v1",
-    apiKey: process.env.NEXT_PUBLIC_OPENAI_KEY!,
-    dangerouslyAllowBrowser: true
-});
+//
+// const openai = new OpenAI({
+//     baseURL: "https://api.openai.com/v1",
+//     apiKey: process.env.NEXT_PUBLIC_OPENAI_KEY!,
+//     dangerouslyAllowBrowser: true
+// });
 
 
 const ImageToDoc = () => {
@@ -85,144 +85,85 @@ const ImageToDoc = () => {
         const fileInput = document.getElementById("file-input") as HTMLInputElement;
         fileInput.click();
     };
+    //
+    //
+    // // Translation by openai before creating the word
+    //
+    //
+    // const translateText = async (text: string, targetLanguage: string): Promise<string> => {
+    //     try {
+    //         const response = await openai.chat.completions.create({
+    //             model: "gpt-3.5-turbo",
+    //             temperature: 0.5, // Adjust as needed
+    //             max_tokens: 1000, // Adjust as needed
+    //             // stop: ["\n"], // Stop at the first newline character
+    //             n: 1, // Generate a single completion
+    //             messages: [{role: "system", content: `Translate the following text to ${targetLanguage}:`}, {
+    //                 role: "user",
+    //                 content: text
+    //             }]
+    //         });
+    //
+    //         return response.choices[0].message.content;
+    //     } catch (error) {
+    //         console.error("Translation error:", error);
+    //         return ""; // Handle error appropriately
+    //     }
+    // };
 
-
-    // Translation by openai before creating the word
-
-
-    const translateText = async (text: string, targetLanguage: string): Promise<string> => {
-        try {
-            const response = await openai.chat.completions.create({
-                model: "gpt-3.5-turbo",
-                temperature: 0.5, // Adjust as needed
-                max_tokens: 1000, // Adjust as needed
-                // stop: ["\n"], // Stop at the first newline character
-                n: 1, // Generate a single completion
-                messages: [{role: "system", content: `Translate the following text to ${targetLanguage}:`}, {
-                    role: "user",
-                    content: text
-                }]
-            });
-
-            return response.choices[0].message.content;
-        } catch (error) {
-            console.error("Translation error:", error);
-            return ""; // Handle error appropriately
-        }
-    };
-
-    const CHUNK_SIZE = 1000; // Define a suitable chunk size based on token limits
-
-// Function to split text into chunks
-    const chunkText = (text: string, chunkSize: number): string[] => {
-        // Implementation to split text into chunks of `chunkSize` tokens
-        // This is a simplified example; consider tokenization specifics for accurate splitting
-        const result = [];
-        let currentChunk = "";
-
-        text.split(' ').forEach(word => {
-            if ((currentChunk + word).length > chunkSize) {
-                result.push(currentChunk);
-                currentChunk = word;
-            } else {
-                currentChunk += `${word} `;
-            }
-        });
-
-        // Add the last chunk if it's not empty
-        if (currentChunk.trim()) {
-            result.push(currentChunk.trim());
-        }
-
-        return result;
-    };
+    // const CHUNK_SIZE = 1000; // Define a suitable chunk size based on token limits
+//
+// // Function to split text into chunks
+//     const chunkText = (text: string, chunkSize: number): string[] => {
+//         // Implementation to split text into chunks of `chunkSize` tokens
+//         // This is a simplified example; consider tokenization specifics for accurate splitting
+//         const result = [];
+//         let currentChunk = "";
+//
+//         text.split(' ').forEach(word => {
+//             if ((currentChunk + word).length > chunkSize) {
+//                 result.push(currentChunk);
+//                 currentChunk = word;
+//             } else {
+//                 currentChunk += `${word} `;
+//             }
+//         });
+//
+//         // Add the last chunk if it's not empty
+//         if (currentChunk.trim()) {
+//             result.push(currentChunk.trim());
+//         }
+//
+//         return result;
+//     };
 
 // Asynchronous function to translate a chunk of text
-    const translateChunk = async (chunk: string, targetLanguage: string): Promise<string> => {
-        // Use the `translateText` function defined earlier or a similar implementation
-        return await translateText(chunk, targetLanguage);
-    };
+//     const translateChunk = async (chunk: string, targetLanguage: string): Promise<string> => {
+//         // Use the `translateText` function defined earlier or a similar implementation
+//         return await translateText(chunk, targetLanguage);
+//     };
 
 // Function to handle large text translation by processing it in chunks
-    const translateLargeText = async (text: string, targetLanguage: string): Promise<string> => {
-        const chunks = chunkText(text, CHUNK_SIZE);
-        const translatedChunks = await Promise.all(chunks.map(async (chunk) => {
-            return await translateChunk(chunk, targetLanguage);
-        }));
-
-        // Combine translated chunks back into a single string
-        return translatedChunks.join(' ');
-    };
+//     const translateLargeText = async (text: string, targetLanguage: string): Promise<string> => {
+//         const chunks = chunkText(text, CHUNK_SIZE);
+//         const translatedChunks = await Promise.all(chunks.map(async (chunk) => {
+//             return await translateChunk(chunk, targetLanguage);
+//         }));
+//
+//         // Combine translated chunks back into a single string
+//         return translatedChunks.join(' ');
+//     };
 
 
     const downloadFile = async () => {
         setLoading(true);
         if (!documentContent) return;
 
-        const targetLanguage = "English";
-        const translatedText = await translateLargeText(text, targetLanguage);
+        // const targetLanguage = "English";
+        // const translatedText = await translateLargeText(text, targetLanguage);
 
         let children = []; // Prepare an array to hold all document children (paragraphs and tables)
         let usedIndices = new Set<number>(); // Track indices used in tables
-
-        /*
-               // a single document
-        {
-    "detectedLanguages": [],
-    "layout": {
-        "textAnchor": {
-            "textSegments": [
-                {
-                    "startIndex": "250",
-                    "endIndex": "254"
-                }
-            ],
-            "content": ""
-        },
-        "confidence": 0.8500014543533325,
-        "boundingPoly": {
-            "vertices": [
-                {
-                    "x": 26,
-                    "y": 354
-                },
-                {
-                    "x": 42,
-                    "y": 354
-                },
-                {
-                    "x": 42,
-                    "y": 362
-                },
-                {
-                    "x": 26,
-                    "y": 362
-                }
-            ],
-            "normalizedVertices": [
-                {
-                    "x": 0.04248366132378578,
-                    "y": 0.4469696879386902
-                },
-                {
-                    "x": 0.06862745434045792,
-                    "y": 0.4469696879386902
-                },
-                {
-                    "x": 0.06862745434045792,
-                    "y": 0.4570707082748413
-                },
-                {
-                    "x": 0.04248366132378578,
-                    "y": 0.4570707082748413
-                }
-            ]
-        },
-        "orientation": "PAGE_UP"
-    },
-    "provenance": null
-}
-         */
 
         documentContent.pages.forEach((page: any) => {
             let items = [];
@@ -304,7 +245,7 @@ const ImageToDoc = () => {
                     textSegments.forEach((segment: { startIndex: string; endIndex: string; }) => {
                         const startIndex = parseInt(segment.startIndex, 10);
                         const endIndex = parseInt(segment.endIndex, 10);
-                        blockText += translatedText.substring(startIndex, endIndex);
+                        blockText += text.substring(startIndex, endIndex);
                     });
 
                     const paragraphs = blockText.split("\n").map(paragraphText => new Paragraph({
@@ -342,7 +283,7 @@ const ImageToDoc = () => {
                             cellTextSegments.forEach((segment: { startIndex: string; endIndex: string; }) => {
                                 const startIndex = parseInt(segment.startIndex, 10);
                                 const endIndex = parseInt(segment.endIndex, 10);
-                                cellText += translatedText.substring(startIndex, endIndex);
+                                cellText += text.substring(startIndex, endIndex);
                             });
 
 

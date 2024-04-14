@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^4.29.12",
     "@google-cloud/documentai": "^8.2.0",
     "@hello-pangea/dnd": "^16.5.0",
     "@hookform/resolvers": "^3.3.4",
@@ -17,6 +18,8 @@
     "@radix-ui/react-separator": "^1.0.3",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-tooltip": "^1.0.7",
+    "@supabase/ssr": "^0.3.0",
+    "@supabase/supabase-js": "^2.42.3",
     "@tanstack/react-table": "^8.11.8",
     "axios": "^1.6.7",
     "class-variance-authority": "^0.7.0",
