@@ -21,6 +21,7 @@
     "@supabase/ssr": "^0.3.0",
     "@supabase/supabase-js": "^2.42.3",
     "@tanstack/react-table": "^8.11.8",
+    "@uploadthing/react": "^6.4.4",
     "axios": "^1.6.7",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
@@ -42,6 +43,7 @@
     "request": "^2.88.2",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
+    "uploadthing": "^6.9.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
