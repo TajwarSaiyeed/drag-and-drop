@@ -73,7 +73,15 @@ const Navbar = () => {
       {!isLoaded ? (
         <Skeleton className="h-12 w-12 rounded-full" />
       ) : isSignedIn ? (
-        <UserButton afterSignOutUrl={"/"} />
+        <div className={"flex space-x-4"}>
+          <Link
+            href={"/my-files"}
+            className={buttonVariants({ variant: "link", size: "sm" })}
+          >
+            My Files
+          </Link>
+          <UserButton afterSignOutUrl={"/"} />
+        </div>
       ) : (
         <div className={"flex space-x-4"}>
           <Link

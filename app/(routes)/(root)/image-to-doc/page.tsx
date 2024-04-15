@@ -75,8 +75,6 @@ const ImageToDoc = () => {
           "Content-Type": "multipart/form-data",
         },
       });
-      console.log("Setting document content:", res.data.response.document);
-
       setText(res.data.response.document.text);
       setDocumentContent(res.data.response.document);
     } catch (error) {
